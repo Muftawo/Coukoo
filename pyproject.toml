@@ -1,15 +1,26 @@
 [tool.poetry]
 name = "couckoo"
 version = "0.1.0"
-description = ""
+description = "An efficient duplicate images detector."
 authors = ["Muftawo"]
+license = "MIT"
 readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.12"
 imagehash = "^4.3.1"
+pandas = "^2.2.2"
 
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.4.2"
+isort = "^5.13.2"
+pytest = "^8.2.2"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+
+[project.scripts]
+couckoo = "src.couckoo.main"
