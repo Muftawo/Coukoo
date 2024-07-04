@@ -104,12 +104,23 @@ class LSHProcessor:
                                     (img_a, img_b, similarity)
                                 )
 
+    def assign_labels(self, threshold: float) -> Dict[str, int]:
+        """
+        Assign integer labels to images, with similar images above threshold having same label.
+
+        Args:
+            threshold (float): Similarity threshold to consider images as similar.
+
+        Returns:
+            Dict[str, int]: Mapping of image file paths to their assigned labels.
+        """
+        self.process_similarities(threshold)
+        self._assign_labels_remaining_images()
         return self.labels
 
-    def _assign_remaining_images(self) -> None:
-        """Assign labels to remaining images (not part of any
-        near-duplicate pair)
-        """
+    def _assign_labels_remaining_images(self) -> None:
+        """Assign labels to remaining images (not part of any near-duplicate pair)"""
+
         for file_path in self.signatures.keys():
             if file_path not in self.labels:
                 self.labels[file_path] = self.label_counter
