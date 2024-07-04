@@ -215,7 +215,9 @@ def find_duplicates(
         return {}
 
 
-def generate_labels(input_dir, threshold, hash_size, bands) -> None:
+def get_results(
+    input_dir: str, threshold: float, hash_size: int, bands: int, gen_socres: bool
+) -> None:
     """
     outputs a  csv of file names and labels
 
@@ -227,12 +229,33 @@ def generate_labels(input_dir, threshold, hash_size, bands) -> None:
     bands (int) : band size
     """
 
-    output_file = "results/labels/results.csv"
+    output_file = "results/labels.csv"
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
-    labels = label_duplicates(input_dir, threshold, hash_size, bands)
+    labels, similarity_scores = find_duplicates(
+        input_dir, threshold, hash_size, bands, gen_socres
+    )
     df = pd.DataFrame(list(labels.items()), columns=["filename", "label"])
     df.sort_values("label").to_csv(output_file)
+
+    if gen_socres:
+        generate_similarity_scores(
+            similarity_scores,
+        )
+
+
+def generate_similarity_scores(similarity_scores: List[Tuple[str, str, float]]) -> None:
+    """
+    outputs a  csv of  images file paths and similarity scores
+    
+
+    """
+    scores_file = "results/scores.csv"
+    os.makedirs(os.path.dirname(scores_file), exist_ok=True)
+    df_scores = pd.DataFrame(
+        similarity_scores, columns=["imageA", "imageB", "similarity"]
+    )
+    df_scores.to_csv(scores_file, index=False)
 
 
 def main(argv):
