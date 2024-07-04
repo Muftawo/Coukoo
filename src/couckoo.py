@@ -198,6 +198,7 @@ def find_duplicates(
         Dict[str, int]: Dictionary of image file paths and their assigned labels.
     """
     image_processor = ImageProcessor(hash_size)
+    similarity_scores = []
 
     try:
         file_list = get_image_files(input_dir)
