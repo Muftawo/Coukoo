@@ -126,6 +126,17 @@ class LSHProcessor:
                 self.labels[file_path] = self.label_counter
                 self.label_counter += 1
 
+    def get_similarity_scores(self, threshold: float) -> List[Tuple[str, str, float]]:
+        """
+        Updates similar images with their similarity score.
+
+        Args:
+            threshold (float): Similarity threshold to consider images as similar.
+
+        """
+        self.process_similarities(threshold, collect_scores=True)
+        return self.similarity_scores
+
 
 # helper functions
 def get_image_files(input_dir: str) -> List[str]:
