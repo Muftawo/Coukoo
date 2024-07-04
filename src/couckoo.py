@@ -75,40 +75,34 @@ class LSHProcessor:
             logging.error(f"Signatures not found for pair: {pair}")
             return img_a, img_b, 0.0
 
-    def assign_labels(self, threshold: float):
+    def process_similarities(
+        self, threshold: float, collect_scores: bool = False
+    ) -> None:
         """
-        Assign integer labels to images, with simage images above threshold
-        having same label.
+        Process and assign labels or collect similarity scores based on threshold.
 
         Args:
-            threshold (float): .
+            threshold (float): Similarity threshold to consider images as similar.
+            collect_scores (bool): Flag to indicate if similarity scores should be collected.
         """
-        # hash_bucket list contains dicts of signature bytes as keys and  list of image paths as values
-        # retrive matched images
         for hash_buckets in self.hash_buckets_list:
             for matched_imgs in hash_buckets.values():
                 if len(matched_imgs) > 1:
-                    # compare matched images for similarity
                     for image_a, image_b in zip(matched_imgs, matched_imgs[1:]):
                         img_a, img_b, similarity = self.calculate_similarity(
                             (image_a, image_b)
                         )
                         if similarity >= threshold:
-                            # similar images beyond threshold with no label
                             if img_a not in self.labels:
                                 self.labels[img_a] = self.label_counter
                                 self.label_counter += 1
                             if img_b not in self.labels:
                                 self.labels[img_b] = self.labels[img_a]
-                        else:
-                            if img_a not in self.labels:
-                                self.labels[img_a] = self.label_counter
-                                self.label_counter += 1
-                            if img_b not in self.labels:
-                                self.labels[img_b] = self.label_counter
-                                self.label_counter += 1
 
-        self._assign_remaining_images()
+                            if collect_scores:
+                                self.similarity_scores.append(
+                                    (img_a, img_b, similarity)
+                                )
 
         return self.labels
 
