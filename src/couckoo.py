@@ -208,11 +208,14 @@ def find_duplicates(
         lsh_processor = process_images(hash_size, bands, image_processor, file_list)
         labels = lsh_processor.assign_labels(threshold)
 
-        return labels
+        if gen_socres:
+            similarity_scores = lsh_processor.get_similarity_scores(threshold)
+
+        return labels, similarity_scores
 
     except ValueError as ve:
         logging.error(str(ve))
-        return {}
+        return {}, []
 
 
 def get_results(
