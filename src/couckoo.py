@@ -271,29 +271,29 @@ def main(argv):
         "-i",
         "--input_dir",
         type=str,
-        default="sample_images",
+        default="data",
         help="Directory containing image files.",
     )
     parser.add_argument(
         "-t",
         "--threshold",
         type=float,
-        default=0.9,
+        default=0.8,
         help="Threshold for near duplicates.",
     )
     parser.add_argument(
         "-s",
         "--hash_size",
         type=int,
-        default=8,
+        default=16,
         help="Size of the hash.",
     )
-    parser.add_argument("-b", "--bands", type=int, default=8, help="Number of bands.")
+    parser.add_argument("-b", "--bands", type=int, default=16, help="Number of bands.")
     parser.add_argument(
         "-c",
         "--scores",
         type=bool,
-        default=False,
+        default=True,
         help="generate a duplicates.csv file with duplicated images and the similarity score.",
     )
     parser.add_argument(
@@ -309,13 +309,9 @@ def main(argv):
     threshold = args.threshold
     hash_size = args.hash_size
     bands = args.bands
-    gen_lables = args.gen_lables
-    gen_socres = args.scores
+    show_similarity_scores = args.scores
 
-    if gen_lables:
-        generate_labels(input_dir, threshold, hash_size, bands)
-    if gen_socres:
-        pass
+    get_results(input_dir, threshold, hash_size, bands, show_similarity_scores)
 
 
 if __name__ == "__main__":
