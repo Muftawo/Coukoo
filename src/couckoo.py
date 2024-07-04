@@ -28,9 +28,10 @@ class LSHProcessor:
         self.bands = bands
         self.rows = hash_size**2 // bands
         self.hash_buckets_list = [{} for _ in range(bands)]
-        self.signatures = defaultdict(list)
-        self.labels = {}
+        self.signatures: Dict[str, np.ndarray] = {}
+        self.labels: Dict[str, int] = {}
         self.label_counter = 0
+        self.similarity_scores: List[Tuple[str, str, float]] = []
 
     def add_signature(self, file_path: str, signature: np.ndarray):
         """
