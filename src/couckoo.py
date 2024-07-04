@@ -182,9 +182,9 @@ def process_images(
     return lsh_processor
 
 
-def label_duplicates(
-    input_dir: str, threshold: float, hash_size: int, bands: int
-) -> Dict[str, int]:
+def find_duplicates(
+    input_dir: str, threshold: float, hash_size: int, bands: int, gen_socres: bool
+) -> Tuple[Dict[str, int], List[Tuple[str, str, float]]]:
     """
     Find near-duplicate images within a directory using Locality Sensitive Hashing.
 
