@@ -28,9 +28,10 @@ class LSHProcessor:
         self.bands = bands
         self.rows = hash_size**2 // bands
         self.hash_buckets_list = [{} for _ in range(bands)]
-        self.signatures = defaultdict(list)
-        self.labels = {}
+        self.signatures: Dict[str, np.ndarray] = {}
+        self.labels: Dict[str, int] = {}
         self.label_counter = 0
+        self.similarity_scores: List[Tuple[str, str, float]] = []
 
     def add_signature(self, file_path: str, signature: np.ndarray):
         """
@@ -74,51 +75,67 @@ class LSHProcessor:
             logging.error(f"Signatures not found for pair: {pair}")
             return img_a, img_b, 0.0
 
-    def assign_labels(self, threshold: float):
+    def process_similarities(
+        self, threshold: float, collect_scores: bool = False
+    ) -> None:
         """
-        Assign integer labels to images, with simage images above threshold
-        having same label.
+        Process and assign labels or collect similarity scores based on threshold.
 
         Args:
-            threshold (float): .
+            threshold (float): Similarity threshold to consider images as similar.
+            collect_scores (bool): Flag to indicate if similarity scores should be collected.
         """
-        # hash_bucket list contains dicts of signature bytes as keys and  list of image paths as values
-        # retrive matched images
         for hash_buckets in self.hash_buckets_list:
             for matched_imgs in hash_buckets.values():
                 if len(matched_imgs) > 1:
-                    # compare matched images for similarity
                     for image_a, image_b in zip(matched_imgs, matched_imgs[1:]):
                         img_a, img_b, similarity = self.calculate_similarity(
                             (image_a, image_b)
                         )
                         if similarity >= threshold:
-                            # similar images beyond threshold with no label
                             if img_a not in self.labels:
                                 self.labels[img_a] = self.label_counter
                                 self.label_counter += 1
                             if img_b not in self.labels:
                                 self.labels[img_b] = self.labels[img_a]
-                        else:
-                            if img_a not in self.labels:
-                                self.labels[img_a] = self.label_counter
-                                self.label_counter += 1
-                            if img_b not in self.labels:
-                                self.labels[img_b] = self.label_counter
-                                self.label_counter += 1
 
-        self._assign_remaining_images()
+                            if collect_scores:
+                                self.similarity_scores.append(
+                                    (img_a, img_b, similarity)
+                                )
 
+    def assign_labels(self, threshold: float) -> Dict[str, int]:
+        """
+        Assign integer labels to images, with similar images above threshold having same label.
+
+        Args:
+            threshold (float): Similarity threshold to consider images as similar.
+
+        Returns:
+            Dict[str, int]: Mapping of image file paths to their assigned labels.
+        """
+        self.process_similarities(threshold)
+        self._assign_labels_remaining_images()
         return self.labels
 
-    def _assign_remaining_images(self) -> None:
-        """Assign labels to remaining images (not part of any
-        near-duplicate pair)
-        """
+    def _assign_labels_remaining_images(self) -> None:
+        """Assign labels to remaining images (not part of any near-duplicate pair)"""
+
         for file_path in self.signatures.keys():
             if file_path not in self.labels:
                 self.labels[file_path] = self.label_counter
                 self.label_counter += 1
+
+    def get_similarity_scores(self, threshold: float) -> List[Tuple[str, str, float]]:
+        """
+        Updates similar images with their similarity score.
+
+        Args:
+            threshold (float): Similarity threshold to consider images as similar.
+
+        """
+        self.process_similarities(threshold, collect_scores=True)
+        return self.similarity_scores
 
 
 # helper functions
@@ -165,9 +182,9 @@ def process_images(
     return lsh_processor
 
 
-def label_duplicates(
-    input_dir: str, threshold: float, hash_size: int, bands: int
-) -> Dict[str, int]:
+def find_duplicates(
+    input_dir: str, threshold: float, hash_size: int, bands: int, gen_socres: bool
+) -> Tuple[Dict[str, int], List[Tuple[str, str, float]]]:
     """
     Find near-duplicate images within a directory using Locality Sensitive Hashing.
 
@@ -181,6 +198,7 @@ def label_duplicates(
         Dict[str, int]: Dictionary of image file paths and their assigned labels.
     """
     image_processor = ImageProcessor(hash_size)
+    similarity_scores = []
 
     try:
         file_list = get_image_files(input_dir)
@@ -190,14 +208,19 @@ def label_duplicates(
         lsh_processor = process_images(hash_size, bands, image_processor, file_list)
         labels = lsh_processor.assign_labels(threshold)
 
-        return labels
+        if gen_socres:
+            similarity_scores = lsh_processor.get_similarity_scores(threshold)
+
+        return labels, similarity_scores
 
     except ValueError as ve:
         logging.error(str(ve))
-        return {}
+        return {}, []
 
 
-def generate_labels(input_dir, threshold, hash_size, bands) -> None:
+def get_results(
+    input_dir: str, threshold: float, hash_size: int, bands: int, gen_socres: bool
+) -> None:
     """
     outputs a  csv of file names and labels
 
@@ -209,12 +232,33 @@ def generate_labels(input_dir, threshold, hash_size, bands) -> None:
     bands (int) : band size
     """
 
-    output_file = "results/labels/results.csv"
+    output_file = "results/labels.csv"
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
-    labels = label_duplicates(input_dir, threshold, hash_size, bands)
+    labels, similarity_scores = find_duplicates(
+        input_dir, threshold, hash_size, bands, gen_socres
+    )
     df = pd.DataFrame(list(labels.items()), columns=["filename", "label"])
     df.sort_values("label").to_csv(output_file)
+
+    if gen_socres:
+        generate_similarity_scores(
+            similarity_scores,
+        )
+
+
+def generate_similarity_scores(similarity_scores: List[Tuple[str, str, float]]) -> None:
+    """
+    outputs a  csv of  images file paths and similarity scores
+    
+
+    """
+    scores_file = "results/scores.csv"
+    os.makedirs(os.path.dirname(scores_file), exist_ok=True)
+    df_scores = pd.DataFrame(
+        similarity_scores, columns=["imageA", "imageB", "similarity"]
+    )
+    df_scores.to_csv(scores_file, index=False)
 
 
 def main(argv):
@@ -227,29 +271,29 @@ def main(argv):
         "-i",
         "--input_dir",
         type=str,
-        default="sample_images",
+        default="data",
         help="Directory containing image files.",
     )
     parser.add_argument(
         "-t",
         "--threshold",
         type=float,
-        default=0.9,
+        default=0.8,
         help="Threshold for near duplicates.",
     )
     parser.add_argument(
         "-s",
         "--hash_size",
         type=int,
-        default=8,
+        default=16,
         help="Size of the hash.",
     )
-    parser.add_argument("-b", "--bands", type=int, default=8, help="Number of bands.")
+    parser.add_argument("-b", "--bands", type=int, default=16, help="Number of bands.")
     parser.add_argument(
         "-c",
         "--scores",
         type=bool,
-        default=False,
+        default=True,
         help="generate a duplicates.csv file with duplicated images and the similarity score.",
     )
     parser.add_argument(
@@ -265,13 +309,9 @@ def main(argv):
     threshold = args.threshold
     hash_size = args.hash_size
     bands = args.bands
-    gen_lables = args.gen_lables
-    gen_socres = args.scores
+    show_similarity_scores = args.scores
 
-    if gen_lables:
-        generate_labels(input_dir, threshold, hash_size, bands)
-    if gen_socres:
-        pass
+    get_results(input_dir, threshold, hash_size, bands, show_similarity_scores)
 
 
 if __name__ == "__main__":
