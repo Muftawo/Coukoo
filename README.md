@@ -1,4 +1,4 @@
-# **Couckoo**
+# **Coukoo**
 Couckoo is an image duplicate detection tool, designed to remove duplicate images from large datasets using locality-sensitive hashing. To achieve image deduplication at scale, an approximating search algorithm such as LSH offers a significant tradeoff for speed and efficiency at the cost of some accuracy, which can be adjusted through parameter tuning.
 
 
